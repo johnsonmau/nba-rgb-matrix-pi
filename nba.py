@@ -1,104 +1,98 @@
 import time
-import requests
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from PIL import Image
-from io import BytesIO
 
-# Configuration for the LED matrix
+# LED Matrix Configuration
 options = RGBMatrixOptions()
 options.rows = 32
 options.cols = 64
 options.chain_length = 1
 options.parallel = 1
-options.hardware_mapping = 'regular'  # Adjust as per your setup
+options.hardware_mapping = 'regular'  # Adjust as needed
 matrix = RGBMatrix(options=options)
 
-# Fonts and colors
+# Fonts and Colors
 font = graphics.Font()
 font.LoadFont("rpi-rgb-led-matrix/fonts/7x13.bdf")
 white = graphics.Color(255, 255, 255)
 red = graphics.Color(255, 0, 0)
 green = graphics.Color(0, 255, 0)
 
-# API endpoints and keys
-odds_api_url = "https://api.the-odds-api.com/v4/sports/basketball_nba/odds"
-odds_api_key = "YOUR_ODDS_API_KEY"
-nba_api_url = "https://www.balldontlie.io/api/v1/games"
-team_logos = {
+# Team Logos (Adjust paths based on your setup)
+TEAM_LOGOS = {
     "BOS": "assets/boston.png",
     "ATL": "assets/atlanta.png",
-    # Add paths to all team logos
+    "LAL": "assets/lakers.png",
+    "MIA": "assets/heat.png",
+    # Add more team logos...
 }
 
-def fetch_game_data():
-    # Fetch today's NBA games
-    response = requests.get(nba_api_url, params={"start_date": "2025-02-21", "end_date": "2025-02-21"})
-    games = response.json()["data"]
-    return games
+# Static Game Data (Simulated API Response)
+GAMES = [
+    {
+        "home_team": {"full_name": "Boston Celtics", "abbreviation": "BOS"},
+        "visitor_team": {"full_name": "Atlanta Hawks", "abbreviation": "ATL"},
+        "status": "scheduled",
+        "start_time": "7:30 PM ET",
+        "odds": {"home": "-250", "away": "+200"}
+    },
+    {
+        "home_team": {"full_name": "Los Angeles Lakers", "abbreviation": "LAL"},
+        "visitor_team": {"full_name": "Miami Heat", "abbreviation": "MIA"},
+        "status": "in_progress",
+        "home_team_score": 78,
+        "visitor_team_score": 65,
+        "period": 3,
+        "time_remaining": "8:42"
+    }
+]
 
-def fetch_betting_odds():
-    # Fetch betting odds
-    response = requests.get(odds_api_url, params={"apiKey": odds_api_key, "regions": "us"})
-    odds = response.json()
-    return odds
+def get_team_logo(team_abbr):
+    """Returns the path to a team's logo."""
+    return TEAM_LOGOS.get(team_abbr, "assets/default.png")  # Use default image if not found
 
-def display_game_info(game, odds):
-    # Clear the matrix
+def display_game_info(game):
+    """Displays game details on the LED matrix."""
     matrix.Clear()
 
-    # Display team logos
-    home_team = game["home_team"]["full_name"]
-    visitor_team = game["visitor_team"]["full_name"]
-    home_logo = Image.open(team_logos[home_team])
-    visitor_logo = Image.open(team_logos[visitor_team])
-    matrix.SetImage(home_logo.convert('RGB'), 0, 0)
-    matrix.SetImage(visitor_logo.convert('RGB'), 32, 0)
+    home_abbr = game["home_team"]["abbreviation"]
+    visitor_abbr = game["visitor_team"]["abbreviation"]
+
+    # Load and display team logos
+    try:
+        home_logo = Image.open(get_team_logo(home_abbr)).convert("RGB")
+        visitor_logo = Image.open(get_team_logo(visitor_abbr)).convert("RGB")
+        matrix.SetImage(home_logo, 0, 0)
+        matrix.SetImage(visitor_logo, 32, 0)
+    except Exception as e:
+        print(f"Error loading team logos: {e}")
 
     # Display game time or live score
     if game["status"] == "scheduled":
-        start_time = game["start_time"]  # Adjust time format as needed
-        graphics.DrawText(matrix, font, 2, 30, white, f"{start_time}")
+        start_time = game["start_time"]
+        graphics.DrawText(matrix, font, 2, 30, white, f"Start: {start_time}")
+
         # Display betting odds
-        game_odds = next((o for o in odds if o["home_team"] == home_team and o["away_team"] == visitor_team), None)
-        if game_odds:
-            home_odds = "-500"
-            away_odds = "+210"
-            graphics.DrawText(matrix, font, 2, 40, green, f"{home_team}: {home_odds}")
-            graphics.DrawText(matrix, font, 2, 50, red, f"{visitor_team}: {away_odds}")
+        home_odds = game["odds"]["home"]
+        away_odds = game["odds"]["away"]
+        graphics.DrawText(matrix, font, 2, 40, green, f"{home_abbr}: {home_odds}")
+        graphics.DrawText(matrix, font, 2, 50, red, f"{visitor_abbr}: {away_odds}")
+
     elif game["status"] == "in_progress":
         home_score = game["home_team_score"]
         visitor_score = game["visitor_team_score"]
         period = game["period"]
-        time_remaining = game["time"]
+        time_remaining = game["time_remaining"]
         graphics.DrawText(matrix, font, 2, 30, white, f"{home_score} - {visitor_score}")
         graphics.DrawText(matrix, font, 2, 40, white, f"Q{period} {time_remaining}")
 
-    # Hold the display for a few seconds
-    time.sleep(5)
+    time.sleep(5)  # Display each game for 5 seconds
 
 def main():
-    games = [{
-        "home_team": {
-            "full_name": "BOS"
-        },
-        "visitor_team": {
-            "full_name": "ATL"
-        },
-        "status": "in_progress",
-        "home_team_score": 53,
-        "visitor_team_score": 28,
-        "period": 2,
-        "time": "4:02"
-    }]
-
-    odds = [
-        {
-            "home_team"
-        }
-    ]
-
-    for game in games:
-        display_game_info(game, odds)
+    """Main loop that cycles through static game data."""
+    while True:
+        for game in GAMES:
+            display_game_info(game)
 
 if __name__ == "__main__":
     main()
