@@ -25,8 +25,8 @@ odds_api_url = "https://api.the-odds-api.com/v4/sports/basketball_nba/odds"
 odds_api_key = "YOUR_ODDS_API_KEY"
 nba_api_url = "https://www.balldontlie.io/api/v1/games"
 team_logos = {
-    "Lakers": "path/to/lakers_logo.png",
-    "Warriors": "path/to/warriors_logo.png",
+    "BOS": "assets/boston.png",
+    "ATL": "assets/atlanta.png",
     # Add paths to all team logos
 }
 
@@ -61,8 +61,8 @@ def display_game_info(game, odds):
         # Display betting odds
         game_odds = next((o for o in odds if o["home_team"] == home_team and o["away_team"] == visitor_team), None)
         if game_odds:
-            home_odds = game_odds["bookmakers"][0]["markets"][0]["outcomes"][0]["price"]
-            away_odds = game_odds["bookmakers"][0]["markets"][0]["outcomes"][1]["price"]
+            home_odds = "-500"
+            away_odds = "+210"
             graphics.DrawText(matrix, font, 2, 40, green, f"{home_team}: {home_odds}")
             graphics.DrawText(matrix, font, 2, 50, red, f"{visitor_team}: {away_odds}")
     elif game["status"] == "in_progress":
@@ -77,8 +77,26 @@ def display_game_info(game, odds):
     time.sleep(5)
 
 def main():
-    games = fetch_game_data()
-    odds = fetch_betting_odds()
+    games = [{
+        "home_team": {
+            "full_name": "BOS"
+        },
+        "away_team": {
+            "full_name": "ATL"
+        },
+        "status": "in_progress",
+        "home_team_score": 53,
+        "visitor_team_score": 28,
+        "period": 2,
+        "time": "4:02"
+    }]
+
+    odds = [
+        {
+            "home_team"
+        }
+    ]
+
     for game in games:
         display_game_info(game, odds)
 
