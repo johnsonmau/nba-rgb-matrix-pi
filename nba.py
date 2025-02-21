@@ -81,7 +81,7 @@ def main():
         "home_team": {
             "full_name": "BOS"
         },
-        "away_team": {
+        "visitor_team": {
             "full_name": "ATL"
         },
         "status": "in_progress",
