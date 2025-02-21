@@ -1,97 +1,87 @@
 import time
-from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-from PIL import Image
+from rgbmatrix import RGBMatrix, RGBMatrixOptions
+from PIL import Image, ImageDraw, ImageFont
 
-# LED Matrix Configuration
+# Configuration for the LED matrix
 options = RGBMatrixOptions()
 options.rows = 32
 options.cols = 64
 options.chain_length = 1
 options.parallel = 1
-options.hardware_mapping = 'regular'  # Adjust as needed
+options.hardware_mapping = 'regular'  # Adjust as per your setup
 matrix = RGBMatrix(options=options)
 
-# Fonts and Colors
-font = graphics.Font()
-font.LoadFont("rpi-rgb-led-matrix/fonts/7x13.bdf")
-white = graphics.Color(255, 255, 255)
-red = graphics.Color(255, 0, 0)
-green = graphics.Color(0, 255, 0)
+# Create a blank image
+image = Image.new("RGB", (options.cols, options.rows))
+draw = ImageDraw.Draw(image)
 
-# Team Logos (Adjust paths based on your setup)
-TEAM_LOGOS = {
+# Load font
+font = ImageFont.load_default()
+
+# Team logos
+team_logos = {
     "BOS": "assets/boston.png",
-    "ATL": "assets/atlanta.png",
-    "LAL": "assets/lakers.png",
-    "MIA": "assets/heat.png",
-    # Add more team logos...
+    "ATL": "assets/atlanta.png"
 }
 
-# Static Game Data (Simulated API Response)
-GAMES = [
+# Static game data (mocked instead of API calls)
+games = [
     {
-        "home_team": {"full_name": "Boston Celtics", "abbreviation": "BOS"},
-        "visitor_team": {"full_name": "Atlanta Hawks", "abbreviation": "ATL"},
-        "status": "scheduled",
-        "start_time": "7:30 PM ET",
-        "odds": {"home": "-250", "away": "+200"}
+        "home_team": "BOS",
+        "visitor_team": "ATL",
+        "status": "in_progress",
+        "home_score": 53,
+        "visitor_score": 28,
+        "period": 2,
+        "time": "4:02"
     },
     {
-        "home_team": {"full_name": "Los Angeles Lakers", "abbreviation": "LAL"},
-        "visitor_team": {"full_name": "Miami Heat", "abbreviation": "MIA"},
-        "status": "in_progress",
-        "home_team_score": 78,
-        "visitor_team_score": 65,
-        "period": 3,
-        "time_remaining": "8:42"
+        "home_team": "MIA",
+        "visitor_team": "NYK",
+        "status": "scheduled",
+        "start_time": "7:30 PM"
     }
 ]
 
-def get_team_logo(team_abbr):
-    """Returns the path to a team's logo."""
-    return TEAM_LOGOS.get(team_abbr, "assets/default.png")  # Use default image if not found
+def load_team_logo(team_code):
+    """Load and resize team logo if available."""
+    if team_code in team_logos:
+        img = Image.open(team_logos[team_code])
+        return img.resize((30, 30))  # Resize to fit matrix
+    return None
 
 def display_game_info(game):
-    """Displays game details on the LED matrix."""
-    matrix.Clear()
+    """Render and display game information on LED matrix."""
+    draw.rectangle((0, 0, options.cols, options.rows), fill=(0, 0, 0))  # Clear screen
 
-    home_abbr = game["home_team"]["abbreviation"]
-    visitor_abbr = game["visitor_team"]["abbreviation"]
+    # Load team logos
+    home_logo = load_team_logo(game["home_team"])
+    visitor_logo = load_team_logo(game["visitor_team"])
 
-    # Load and display team logos
-    try:
-        home_logo = Image.open(get_team_logo(home_abbr)).convert("RGB")
-        visitor_logo = Image.open(get_team_logo(visitor_abbr)).convert("RGB")
-        matrix.SetImage(home_logo, 0, 0)
-        matrix.SetImage(visitor_logo, 32, 0)
-    except Exception as e:
-        print(f"Error loading team logos: {e}")
+    if home_logo:
+        image.paste(home_logo, (0, 1))  # Place home team logo
+    if visitor_logo:
+        image.paste(visitor_logo, (32, 1))  # Place away team logo
 
-    # Display game time or live score
+    # Display game status
     if game["status"] == "scheduled":
-        start_time = game["start_time"]
-        graphics.DrawText(matrix, font, 2, 30, white, f"Start: {start_time}")
-
-        # Display betting odds
-        home_odds = game["odds"]["home"]
-        away_odds = game["odds"]["away"]
-        graphics.DrawText(matrix, font, 2, 40, green, f"{home_abbr}: {home_odds}")
-        graphics.DrawText(matrix, font, 2, 50, red, f"{visitor_abbr}: {away_odds}")
-
+        draw.text((2, 20), f"{game['home_team']} vs {game['visitor_team']}", font=font, fill=(255, 255, 255))
+        draw.text((2, 25), f"Start: {game['start_time']}", font=font, fill=(255, 255, 255))
     elif game["status"] == "in_progress":
-        home_score = game["home_team_score"]
-        visitor_score = game["visitor_team_score"]
-        period = game["period"]
-        time_remaining = game["time_remaining"]
-        graphics.DrawText(matrix, font, 2, 30, white, f"{home_score} - {visitor_score}")
-        graphics.DrawText(matrix, font, 2, 40, white, f"Q{period} {time_remaining}")
+        draw.text((2, 20), f"{game['home_team']} {game['home_score']} - {game['visitor_score']} {game['visitor_team']}",
+                  font=font, fill=(255, 255, 255))
+        draw.text((2, 25), f"Q{game['period']} | {game['time']}", font=font, fill=(255, 255, 255))
 
-    time.sleep(5)  # Display each game for 5 seconds
+    # Display the image on the matrix
+    matrix.SetImage(image)
+
+    # Hold for 5 seconds before next update
+    time.sleep(5)
 
 def main():
-    """Main loop that cycles through static game data."""
+    """Main loop to display games on the matrix."""
     while True:
-        for game in GAMES:
+        for game in games:
             display_game_info(game)
 
 if __name__ == "__main__":
